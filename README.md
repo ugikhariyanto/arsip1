@@ -1,4 +1,4 @@
-# Arsip Sehat tes push dan pull
+# Arsip Sehat tes push dan pull hari senin
 
 Aplikasi inventaris sederhana untuk puskesmas, dibangun dengan Laravel dan SQLite. Versi awal mencakup dashboard dan pengelolaan data barang tanpa halaman login.
 
