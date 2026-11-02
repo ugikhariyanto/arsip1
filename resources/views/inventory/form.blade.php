@@ -7,6 +7,11 @@
         $selectedCategoryId = (int) old('category_id', $item->category_id);
         $selectedCategory = $categories->firstWhere('id', $selectedCategoryId);
         $priceValue = old('price', $item->price);
+        $originalCategoryId = $item->exists ? (int) $item->category_id : null;
+        $originalItemNumber = $item->exists ? $item->suggested_item_number : '';
+        $initialItemNumber = $originalCategoryId !== null && $selectedCategoryId === $originalCategoryId
+            ? $originalItemNumber
+            : ($nextNumbers[$selectedCategoryId] ?? '');
     @endphp
     <section class="page-heading">
         <div>
@@ -56,7 +61,7 @@
                         <select name="category_id" id="item-category" required @disabled($categories->isEmpty())>
                             <option value="">Pilih kategori</option>
                             @foreach ($categories as $category)
-                                <option value="{{ $category->id }}" data-code="{{ $category->code }}" @selected($selectedCategoryId === $category->id)>
+                                <option value="{{ $category->id }}" data-code="{{ $category->code }}" data-next-number="{{ $nextNumbers[$category->id] ?? '' }}" @selected($selectedCategoryId === $category->id)>
                                     {{ $category->name }} ({{ $category->code }})
                                 </option>
                             @endforeach
@@ -65,13 +70,18 @@
                         <a class="field-hint field-link" href="{{ route('categories.create') }}">+ Tambah kategori baru</a>
                     </label>
                     <label class="field">
-                        <span>Kode barang <b>*</b></span>
+                        <span>Kode barang</span>
                         <div class="code-input-group">
                             <input class="code-prefix" id="item-code-prefix" value="{{ $selectedCategory?->code ?? '' }}" aria-label="Awalan kode barang" readonly>
                             <span class="code-separator">-</span>
-                            <input name="item_number" value="{{ old('item_number', $item->suggested_item_number) }}" maxlength="10" pattern="[0-9]{1,10}" inputmode="numeric" placeholder="001" aria-label="Nomor kode barang" required>
+                            <input id="item-number-display" value="{{ $initialItemNumber }}" placeholder="0000" aria-label="Nomor kode barang otomatis" readonly
+                                data-original-number="{{ $originalItemNumber }}"
+                                data-original-category="{{ $originalCategoryId ?? '' }}">
                         </div>
-                        <small class="field-hint">Kode lengkap: <strong id="item-code-preview">{{ $selectedCategory?->code ?? 'KODE' }}-{{ old('item_number', $item->suggested_item_number) ?: '001' }}</strong></small>
+                        <small class="field-hint">
+                            Kode lengkap: <strong id="item-code-preview">{{ $selectedCategory ? $selectedCategory->code.'-'.$initialItemNumber : 'Pilih kategori' }}</strong>.
+                            Nomor dibuat otomatis sesuai kategori.
+                        </small>
                         @error('item_number')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
                 </div>
@@ -82,7 +92,7 @@
                 <div class="form-grid">
                     <label class="field">
                         <span id="quantity-label">{{ $item->type === 'asset' ? 'Jumlah aset' : 'Jumlah stok' }} <b>*</b></span>
-                        <input type="number" name="quantity" min="{{ $item->type === 'asset' ? 1 : 0 }}" step="1" value="{{ old('quantity', $item->quantity) }}" required>
+                        <input type="number" name="quantity" min="{{ $item->type === 'asset' ? 1 : 0 }}" step="1" value="{{ old('quantity', $item->quantity) }}" required data-numeric-keypad>
                         @error('quantity')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
                     <label class="field">
@@ -155,7 +165,7 @@
                         <span>Harga barang</span>
                         <div class="currency-input">
                             <span>Rp</span>
-                            <input type="text" name="price" value="{{ $priceValue === null || $priceValue === '' ? '' : number_format((int) str_replace('.', '', (string) $priceValue), 0, ',', '.') }}" placeholder="Contoh: 1.000" inputmode="numeric" autocomplete="off" data-currency-input>
+                            <input type="text" name="price" value="{{ $priceValue === null || $priceValue === '' ? '' : number_format((int) str_replace('.', '', (string) $priceValue), 0, ',', '.') }}" placeholder="Contoh: 1.000" inputmode="numeric" autocomplete="off" data-currency-input data-numeric-keypad>
                         </div>
                         <small class="field-hint">Masukkan harga dalam rupiah. Pemisah ribuan ditambahkan otomatis.</small>
                         @error('price')<small class="field-error">{{ $message }}</small>@enderror

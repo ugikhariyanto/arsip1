@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InventoryItem;
 use App\Models\Category;
+use App\Models\InventoryItem;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -64,13 +67,17 @@ class InventoryItemController extends Controller
             ? $request->query('type')
             : InventoryItem::TYPE_CONSUMABLE;
 
+        $item = new InventoryItem([
+            'type' => $type,
+            'quantity' => $type === InventoryItem::TYPE_ASSET ? 1 : 0,
+            'unit' => 'unit',
+        ]);
+        $categories = Category::query()->orderBy('name')->get();
+
         return view('inventory.form', [
-            'item' => new InventoryItem([
-                'type' => $type,
-                'quantity' => $type === InventoryItem::TYPE_ASSET ? 1 : 0,
-                'unit' => 'unit',
-            ]),
-            'categories' => Category::query()->orderBy('name')->get(),
+            'item' => $item,
+            'categories' => $categories,
+            'nextNumbers' => $this->nextNumbersFor($categories),
             'title' => 'Tambah barang',
             'submitLabel' => 'Simpan barang',
         ]);
@@ -86,7 +93,7 @@ class InventoryItemController extends Controller
         }
 
         try {
-            $item = InventoryItem::create([...$data, 'photo_path' => $photoPath]);
+            $item = $this->createWithNextNumber($data, $photoPath);
         } catch (Throwable $exception) {
             if ($photoPath) {
                 Storage::disk('public')->delete($photoPath);
@@ -100,9 +107,12 @@ class InventoryItemController extends Controller
 
     public function edit(InventoryItem $item): View
     {
+        $categories = Category::query()->orderBy('name')->get();
+
         return view('inventory.form', [
             'item' => $item,
-            'categories' => Category::query()->orderBy('name')->get(),
+            'categories' => $categories,
+            'nextNumbers' => $this->nextNumbersFor($categories, $item),
             'title' => 'Ubah barang',
             'submitLabel' => 'Simpan perubahan',
         ]);
@@ -110,12 +120,22 @@ class InventoryItemController extends Controller
 
     public function update(Request $request, InventoryItem $item): RedirectResponse
     {
-        $data = $this->validatedData($request, $item);
+        $data = $this->validatedData($request);
         $oldPhotoPath = $item->photo_path;
         $newPhotoPath = $request->file('photo')?->store('inventory', 'public');
 
         if ($request->hasFile('photo') && ! $newPhotoPath) {
             throw new RuntimeException('Foto barang gagal disimpan. Silakan coba lagi.');
+        }
+
+        // Kode barang hanya berubah bila kategori barang ikut diubah.
+        $categoryChanged = (int) $data['category_id'] !== (int) $item->category_id;
+
+        if ($categoryChanged) {
+            $category = Category::findOrFail($data['category_id']);
+            $itemNumber = InventoryItem::nextNumberForCategory($category->id, $item->id);
+            $data['item_number'] = $itemNumber;
+            $data['code'] = InventoryItem::buildCode($category->code, $itemNumber);
         }
 
         if ($newPhotoPath) {
@@ -154,7 +174,7 @@ class InventoryItemController extends Controller
         return redirect()->route('inventory.index', ['type' => $type])->with('success', 'Barang berhasil dihapus.');
     }
 
-    private function validatedData(Request $request, ?InventoryItem $item = null): array
+    private function validatedData(Request $request): array
     {
         $price = trim((string) $request->input('price', ''));
 
@@ -168,14 +188,6 @@ class InventoryItemController extends Controller
             'type' => ['required', Rule::in([InventoryItem::TYPE_CONSUMABLE, InventoryItem::TYPE_ASSET])],
             'name' => ['required', 'string', 'max:150'],
             'category_id' => ['required', 'integer', Rule::exists('categories', 'id')],
-            'item_number' => [
-                'required',
-                'string',
-                'regex:/^[0-9]{1,10}$/',
-                Rule::unique('inventory_items', 'item_number')
-                    ->where('category_id', $request->input('category_id'))
-                    ->ignore($item),
-            ],
             'quantity' => ['required', 'integer', 'min:'.($request->input('type') === InventoryItem::TYPE_ASSET ? 1 : 0)],
             'price' => ['nullable', 'string', 'regex:/^(?:[0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)$/', 'max:23'],
             'unit' => ['required', 'string', 'max:30'],
@@ -196,17 +208,52 @@ class InventoryItemController extends Controller
         }
 
         $category = Category::findOrFail($data['category_id']);
-        $code = $category->code.'-'.$data['item_number'];
-        validator(['code' => $code], [
-            'code' => ['required', 'max:50', Rule::unique('inventory_items', 'code')->ignore($item)],
-        ])->validate();
 
         unset($data['photo'], $data['remove_photo']);
 
         return [
             ...$data,
             'category' => $category->name,
-            'code' => $code,
         ];
+    }
+
+    private function createWithNextNumber(array $data, ?string $photoPath): InventoryItem
+    {
+        $attempts = 5;
+
+        while (true) {
+            try {
+                return DB::transaction(function () use ($data, $photoPath) {
+                    $category = Category::findOrFail($data['category_id']);
+                    $itemNumber = InventoryItem::nextNumberForCategory($category->id);
+
+                    return InventoryItem::create([
+                        ...$data,
+                        'item_number' => $itemNumber,
+                        'code' => InventoryItem::buildCode($category->code, $itemNumber),
+                        'photo_path' => $photoPath,
+                    ]);
+                });
+            } catch (QueryException $exception) {
+                $attempts--;
+
+                if ($attempts <= 0 || ! $this->isUniqueViolation($exception)) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
+    private function nextNumbersFor(Collection $categories, ?InventoryItem $item = null): array
+    {
+        return $categories->mapWithKeys(fn (Category $category) => [
+            $category->id => InventoryItem::nextNumberForCategory($category->id, $item?->id),
+        ])->all();
+    }
+
+    private function isUniqueViolation(QueryException $exception): bool
+    {
+        return in_array((string) $exception->getCode(), ['23000', '23505'], true)
+            || str_contains(strtolower($exception->getMessage()), 'unique');
     }
 }

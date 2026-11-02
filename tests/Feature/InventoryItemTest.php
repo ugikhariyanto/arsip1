@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\InventoryItem;
 use App\Models\Category;
+use App\Models\InventoryItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -37,7 +37,6 @@ class InventoryItemTest extends TestCase
         $this->post(route('inventory.store'), [
             'type' => InventoryItem::TYPE_CONSUMABLE,
             'category_id' => $category->id,
-            'item_number' => '001',
             'name' => 'Kertas A4',
             'quantity' => 5,
             'unit' => 'rim',
@@ -45,9 +44,9 @@ class InventoryItemTest extends TestCase
         ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
 
         $this->assertDatabaseHas('inventory_items', [
-            'code' => 'ATK-001',
+            'code' => 'ATK-0001',
             'category_id' => $category->id,
-            'item_number' => '001',
+            'item_number' => '0001',
             'name' => 'Kertas A4',
             'quantity' => 5,
             'type' => InventoryItem::TYPE_CONSUMABLE,
@@ -62,7 +61,6 @@ class InventoryItemTest extends TestCase
             ->post(route('inventory.store'), [
                 'type' => InventoryItem::TYPE_ASSET,
                 'category_id' => $category->id,
-                'item_number' => '001',
                 'name' => 'Komputer',
                 'quantity' => 0,
                 'unit' => 'unit',
@@ -80,14 +78,13 @@ class InventoryItemTest extends TestCase
         $this->post(route('inventory.store'), [
             'type' => InventoryItem::TYPE_ASSET,
             'category_id' => $category->id,
-            'item_number' => '010',
             'name' => 'Komputer',
             'quantity' => 1,
             'unit' => 'unit',
             'price' => '1.000.000',
         ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_ASSET]));
 
-        $item = InventoryItem::query()->where('code', 'ELK-010')->firstOrFail();
+        $item = InventoryItem::query()->where('code', 'ELK-0001')->firstOrFail();
         $this->assertSame(1000000, $item->price);
 
         $this->get(route('inventory.edit', $item))
@@ -105,7 +102,6 @@ class InventoryItemTest extends TestCase
         $this->post(route('inventory.store'), [
             'type' => InventoryItem::TYPE_CONSUMABLE,
             'category_id' => $category->id,
-            'item_number' => '013',
             'name' => 'Kertas A4',
             'quantity' => 5,
             'unit' => 'rim',
@@ -113,7 +109,7 @@ class InventoryItemTest extends TestCase
         ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
 
         $this->assertDatabaseHas('inventory_items', [
-            'code' => 'ATK-013',
+            'code' => 'ATK-0001',
             'price' => null,
         ]);
     }
@@ -126,7 +122,6 @@ class InventoryItemTest extends TestCase
             ->post(route('inventory.store'), [
                 'type' => InventoryItem::TYPE_ASSET,
                 'category_id' => $category->id,
-                'item_number' => '014',
                 'name' => 'Komputer',
                 'quantity' => 1,
                 'unit' => 'unit',
@@ -199,8 +194,22 @@ class InventoryItemTest extends TestCase
             ->assertOk()
             ->assertSee('value="asset" selected', false)
             ->assertSee('name="quantity" min="1" step="1" value="1" required', false)
+            ->assertSee('data-numeric-keypad', false)
             ->assertSee('name="category_id"', false)
-            ->assertSee('name="item_number"', false);
+            ->assertSee('id="item-number-display"', false)
+            ->assertSee('readonly', false)
+            ->assertDontSee('name="item_number"', false);
+    }
+
+    public function test_numeric_inputs_offer_an_on_screen_keypad(): void
+    {
+        Category::create(['name' => 'Elektronik', 'code' => 'ELK']);
+
+        $response = $this->get(route('inventory.create', ['type' => InventoryItem::TYPE_ASSET]));
+
+        $response->assertOk();
+        // Hanya jumlah dan harga yang bisa diisi; nomor barang dibuat otomatis.
+        $this->assertSame(2, substr_count($response->getContent(), 'data-numeric-keypad'));
     }
 
     public function test_item_can_be_updated_and_deleted(): void
@@ -234,33 +243,13 @@ class InventoryItemTest extends TestCase
         $this->assertDatabaseMissing('inventory_items', ['id' => $item->id]);
     }
 
-    public function test_category_code_and_item_number_generate_the_full_item_code(): void
-    {
-        $category = Category::create(['name' => 'Alat tulis kantor', 'code' => 'atk']);
-
-        $this->post(route('inventory.store'), [
-            'type' => InventoryItem::TYPE_CONSUMABLE,
-            'category_id' => $category->id,
-            'item_number' => '007',
-            'name' => 'Pulpen',
-            'quantity' => 4,
-            'unit' => 'pcs',
-        ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
-
-        $this->assertDatabaseHas('inventory_items', [
-            'code' => 'ATK-007',
-            'item_number' => '007',
-            'category' => 'Alat tulis kantor',
-        ]);
-    }
-
-    public function test_category_and_item_number_must_be_unique_together(): void
+    public function test_item_code_cannot_be_changed_when_editing_without_changing_the_category(): void
     {
         $category = Category::create(['name' => 'Alat tulis kantor', 'code' => 'ATK']);
-        InventoryItem::create([
+        $item = InventoryItem::create([
             'type' => InventoryItem::TYPE_CONSUMABLE,
-            'code' => 'ATK-001',
-            'item_number' => '001',
+            'code' => 'ATK-0007',
+            'item_number' => '0007',
             'name' => 'Kertas A4',
             'category' => $category->name,
             'category_id' => $category->id,
@@ -268,17 +257,197 @@ class InventoryItemTest extends TestCase
             'unit' => 'rim',
         ]);
 
-        $this->from(route('inventory.create'))
-            ->post(route('inventory.store'), [
+        $this->put(route('inventory.update', $item), [
+            'type' => InventoryItem::TYPE_CONSUMABLE,
+            'category_id' => $category->id,
+            'item_number' => '9999',
+            'name' => 'Kertas A4 Baru',
+            'quantity' => 8,
+            'unit' => 'rim',
+        ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $item->id,
+            'code' => 'ATK-0007',
+            'item_number' => '0007',
+        ]);
+    }
+
+    public function test_changing_the_category_assigns_the_next_number_in_the_new_category(): void
+    {
+        $atk = Category::create(['name' => 'Alat tulis kantor', 'code' => 'ATK']);
+        $elektronik = Category::create(['name' => 'Elektronik', 'code' => 'ELE']);
+        $item = InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ATK-0003',
+            'item_number' => '0003',
+            'name' => 'Printer',
+            'category' => $atk->name,
+            'category_id' => $atk->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+        ]);
+        InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ELE-0004',
+            'item_number' => '0004',
+            'name' => 'Komputer',
+            'category' => $elektronik->name,
+            'category_id' => $elektronik->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+        ]);
+
+        $this->put(route('inventory.update', $item), [
+            'type' => InventoryItem::TYPE_ASSET,
+            'category_id' => $elektronik->id,
+            'name' => 'Printer',
+            'quantity' => 1,
+            'unit' => 'unit',
+        ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_ASSET]));
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $item->id,
+            'code' => 'ELE-0005',
+            'item_number' => '0005',
+            'category' => 'Elektronik',
+            'category_id' => $elektronik->id,
+        ]);
+    }
+
+    public function test_edit_form_shows_the_current_number_and_the_next_number_for_other_categories(): void
+    {
+        $atk = Category::create(['name' => 'Alat tulis kantor', 'code' => 'ATK']);
+        $elektronik = Category::create(['name' => 'Elektronik', 'code' => 'ELE']);
+        $item = InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ATK-0003',
+            'item_number' => '0003',
+            'name' => 'Printer',
+            'category' => $atk->name,
+            'category_id' => $atk->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+        ]);
+        InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ELE-0004',
+            'item_number' => '0004',
+            'name' => 'Komputer',
+            'category' => $elektronik->name,
+            'category_id' => $elektronik->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+        ]);
+
+        $this->get(route('inventory.edit', $item))
+            ->assertOk()
+            ->assertSee('data-original-number="0003"', false)
+            ->assertSee('data-next-number="0005"', false)
+            ->assertSee('id="item-number-display"', false);
+    }
+
+    public function test_item_code_is_generated_automatically_from_the_category(): void
+    {
+        $category = Category::create(['name' => 'Alat tulis kantor', 'code' => 'atk']);
+
+        $this->post(route('inventory.store'), [
+            'type' => InventoryItem::TYPE_CONSUMABLE,
+            'category_id' => $category->id,
+            'name' => 'Pulpen',
+            'quantity' => 4,
+            'unit' => 'pcs',
+        ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
+
+        $this->assertDatabaseHas('inventory_items', [
+            'code' => 'ATK-0001',
+            'item_number' => '0001',
+            'category' => 'Alat tulis kantor',
+        ]);
+    }
+
+    public function test_item_numbers_continue_per_category_and_use_four_digits(): void
+    {
+        $atk = Category::create(['name' => 'Alat tulis kantor', 'code' => 'ATK']);
+        $elektronik = Category::create(['name' => 'Elektronik', 'code' => 'ELE']);
+
+        foreach (['Kertas A4', 'Pulpen', 'Stapler'] as $name) {
+            $this->post(route('inventory.store'), [
                 'type' => InventoryItem::TYPE_CONSUMABLE,
-                'category_id' => $category->id,
-                'item_number' => '001',
-                'name' => 'Pulpen',
-                'quantity' => 4,
+                'category_id' => $atk->id,
+                'name' => $name,
+                'quantity' => 1,
                 'unit' => 'pcs',
-            ])
-            ->assertRedirect(route('inventory.create'))
-            ->assertSessionHasErrors('item_number');
+            ])->assertRedirect();
+        }
+
+        $this->post(route('inventory.store'), [
+            'type' => InventoryItem::TYPE_ASSET,
+            'category_id' => $elektronik->id,
+            'name' => 'Komputer',
+            'quantity' => 1,
+            'unit' => 'unit',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Kertas A4', 'code' => 'ATK-0001']);
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Pulpen', 'code' => 'ATK-0002']);
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Stapler', 'code' => 'ATK-0003']);
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Komputer', 'code' => 'ELE-0001']);
+    }
+
+    public function test_next_number_continues_from_the_largest_number_in_the_category(): void
+    {
+        $category = Category::create(['name' => 'Elektronik', 'code' => 'ELE']);
+
+        foreach (['001', '005'] as $number) {
+            InventoryItem::create([
+                'type' => InventoryItem::TYPE_ASSET,
+                'code' => 'ELE-'.$number,
+                'item_number' => $number,
+                'name' => 'Aset '.$number,
+                'category' => $category->name,
+                'category_id' => $category->id,
+                'quantity' => 1,
+                'unit' => 'unit',
+            ]);
+        }
+
+        $this->post(route('inventory.store'), [
+            'type' => InventoryItem::TYPE_ASSET,
+            'category_id' => $category->id,
+            'name' => 'Printer',
+            'quantity' => 1,
+            'unit' => 'unit',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Printer', 'code' => 'ELE-0006']);
+    }
+
+    public function test_deleting_the_last_item_allows_its_number_to_be_used_again(): void
+    {
+        $category = Category::create(['name' => 'Elektronik', 'code' => 'ELE']);
+        $item = InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ELE-0001',
+            'item_number' => '0001',
+            'name' => 'Komputer',
+            'category' => $category->name,
+            'category_id' => $category->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+        ]);
+
+        $item->delete();
+
+        $this->post(route('inventory.store'), [
+            'type' => InventoryItem::TYPE_ASSET,
+            'category_id' => $category->id,
+            'name' => 'Printer',
+            'quantity' => 1,
+            'unit' => 'unit',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('inventory_items', ['name' => 'Printer', 'code' => 'ELE-0001']);
     }
 
     public function test_item_photo_can_be_previewed_on_form_and_uploaded(): void
@@ -295,14 +464,13 @@ class InventoryItemTest extends TestCase
         $this->post(route('inventory.store'), [
             'type' => InventoryItem::TYPE_CONSUMABLE,
             'category_id' => $category->id,
-            'item_number' => '011',
             'name' => 'Kertas A4',
             'quantity' => 5,
             'unit' => 'rim',
             'photo' => $photo,
         ])->assertRedirect(route('inventory.index', ['type' => InventoryItem::TYPE_CONSUMABLE]));
 
-        $item = InventoryItem::query()->where('code', 'ATK-011')->firstOrFail();
+        $item = InventoryItem::query()->where('code', 'ATK-0001')->firstOrFail();
 
         $this->assertNotNull($item->photo_path);
         Storage::disk('public')->assertExists($item->photo_path);
@@ -489,7 +657,6 @@ class InventoryItemTest extends TestCase
             ->post(route('inventory.store'), [
                 'type' => InventoryItem::TYPE_CONSUMABLE,
                 'category_id' => $category->id,
-                'item_number' => '012',
                 'name' => 'Kertas A4',
                 'quantity' => 5,
                 'unit' => 'rim',

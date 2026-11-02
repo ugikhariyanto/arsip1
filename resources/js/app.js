@@ -41,7 +41,7 @@ mobileViewport.addEventListener('change', () => setMobileNavigation(false));
 
 const typeSelect = document.querySelector('#item-type');
 const categorySelect = document.querySelector('#item-category');
-const itemNumberInput = document.querySelector('input[name="item_number"]');
+const itemNumberDisplay = document.querySelector('#item-number-display');
 const itemCodePrefix = document.querySelector('#item-code-prefix');
 const itemCodePreview = document.querySelector('#item-code-preview');
 const photoInput = document.querySelector('[data-photo-input]');
@@ -68,20 +68,24 @@ typeSelect?.addEventListener('change', updateTypeFields);
 updateTypeFields();
 
 function updateItemCodePreview() {
-    if (!categorySelect || !itemNumberInput || !itemCodePrefix || !itemCodePreview) {
+    if (!categorySelect || !itemNumberDisplay || !itemCodePrefix || !itemCodePreview) {
         return;
     }
 
     const selectedOption = categorySelect.selectedOptions[0];
     const categoryCode = selectedOption?.dataset.code || '';
-    const itemNumber = itemNumberInput.value || '001';
+    const originalCategory = itemNumberDisplay.dataset.originalCategory || '';
+    const isOriginalCategory = originalCategory !== '' && selectedOption?.value === originalCategory;
+    const itemNumber = selectedOption
+        ? (isOriginalCategory ? itemNumberDisplay.dataset.originalNumber : selectedOption.dataset.nextNumber) || ''
+        : '';
 
+    itemNumberDisplay.value = itemNumber;
     itemCodePrefix.value = categoryCode;
-    itemCodePreview.textContent = `${categoryCode || 'KODE'}-${itemNumber}`;
+    itemCodePreview.textContent = selectedOption ? `${categoryCode}-${itemNumber}` : 'Pilih kategori';
 }
 
 categorySelect?.addEventListener('change', updateItemCodePreview);
-itemNumberInput?.addEventListener('input', updateItemCodePreview);
 updateItemCodePreview();
 
 let photoPreviewUrl;
@@ -130,3 +134,101 @@ function formatRupiahInput(input) {
 }
 
 currencyInput?.addEventListener('input', () => formatRupiahInput(currencyInput));
+
+const numericKeypadKeys = [
+    '7', '8', '9',
+    '4', '5', '6',
+    '1', '2', '3',
+    'backspace', '0', 'clear',
+];
+
+function appendNumericDigit(input, digit) {
+    input.value = input.value === '0' ? digit : input.value + digit;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function buildNumericKeypad(input) {
+    const keypad = document.createElement('div');
+    keypad.className = 'numeric-keypad';
+    keypad.hidden = true;
+    keypad.setAttribute('role', 'group');
+    keypad.setAttribute('aria-label', `Tombol angka untuk ${input.getAttribute('aria-label') || input.name || 'kolom ini'}`);
+
+    numericKeypadKeys.forEach((key) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+
+        if (key === 'backspace') {
+            button.textContent = '⌫';
+            button.dataset.action = 'backspace';
+            button.setAttribute('aria-label', 'Hapus satu angka');
+        } else if (key === 'clear') {
+            button.textContent = 'C';
+            button.dataset.action = 'clear';
+            button.setAttribute('aria-label', 'Hapus semua angka');
+        } else {
+            button.textContent = key;
+            button.dataset.digit = key;
+        }
+
+        keypad.append(button);
+    });
+
+    // Jangan biarkan tombol merebut fokus, agar pengguna tetap bisa mengetik
+    // lewat keyboard setelah menekan tombol di layar.
+    keypad.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) {
+            event.preventDefault();
+        }
+    });
+
+    keypad.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+
+        if (!button) {
+            return;
+        }
+
+        if (button.dataset.digit !== undefined) {
+            appendNumericDigit(input, button.dataset.digit);
+        } else if (button.dataset.action === 'backspace') {
+            input.value = input.value.slice(0, -1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (button.dataset.action === 'clear') {
+            input.value = '';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        input.focus();
+    });
+
+    return keypad;
+}
+
+document.querySelectorAll('input[data-numeric-keypad]').forEach((input) => {
+    const keypad = buildNumericKeypad(input);
+    const anchor = input.closest('.currency-input') ?? input;
+    anchor.insertAdjacentElement('afterend', keypad);
+
+    const showKeypad = () => {
+        document.querySelectorAll('.numeric-keypad').forEach((other) => {
+            if (other !== keypad) {
+                other.hidden = true;
+            }
+        });
+        keypad.hidden = false;
+    };
+
+    input.addEventListener('focus', showKeypad);
+    input.addEventListener('click', showKeypad);
+    input.addEventListener('blur', (event) => {
+        if (!event.relatedTarget?.closest?.('.numeric-keypad')) {
+            keypad.hidden = true;
+        }
+    });
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            keypad.hidden = true;
+        }
+    });
+});
