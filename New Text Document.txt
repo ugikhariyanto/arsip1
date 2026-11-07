@@ -16,3 +16,33 @@ php artisan view:cache
 
 //cloudpanel harus usernya yang memiliki hak akses
 chown -R laravel-arsip:laravel-arsip storage bootstrap/cache database
+
+Cara memperbaiki di VPS
+Jalankan sebagai user pemilik aplikasi (bukan root, supaya permission benar):
+cd /path/ke/project
+
+# 1. Cek bentuknya
+ls -ld public/storage
+Kalau hasilnya direktori biasa (drwxr-xr-x, bukan lrwxrwxrwx ... -> ...):
+# 2. Hapus folder kosong tersebut
+rm -rf public/storage
+
+# 3. Buat symlink yang benar
+php artisan storage:link
+
+# 4. Pastikan berhasil (harus menunjuk ke storage/app/public)
+ls -ld public/storage
+readlink -f public/storage
+
+# 5. Bersihkan cache config/view
+php artisan optimize:clear
+Kalau public/storage ternyata symlink tapi targetnya aneh/rusak (misalnya path Windows), hapus juga lalu jalankan php artisan storage:link.
+Perbaiki juga permission:
+chown -R laravel-arsip:laravel-arsip storage bootstrap/cache
+chmod -R 775 storage
+Uji langsung:
+curl -I https://domain-anda/storage/inventory/<nama-file>.jpg
+- 200 → beres
+- 404 → symlink/path masih salah
+- 403 → permission
+Foto yang sudah terlanjur diupload tidak perlu diupload ulang; setelah symlink benar, filenya langsung tampil.
