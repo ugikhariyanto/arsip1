@@ -224,3 +224,123 @@ document.querySelectorAll('input[data-numeric-keypad]').forEach((input) => {
         }
     });
 });
+
+function rgbToHsl(red, green, blue) {
+    const r = red / 255;
+    const g = green / 255;
+    const b = blue / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const lightness = (max + min) / 2;
+    let hue = 0;
+    let saturation = 0;
+
+    if (max !== min) {
+        const delta = max - min;
+        saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+
+        if (max === r) {
+            hue = (g - b) / delta + (g < b ? 6 : 0);
+        } else if (max === g) {
+            hue = (b - r) / delta + 2;
+        } else {
+            hue = (r - g) / delta + 4;
+        }
+
+        hue *= 60;
+    }
+
+    return [hue, saturation, lightness];
+}
+
+function photoShadowColor(image) {
+    const size = 24;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+
+    if (!context) {
+        return null;
+    }
+
+    context.drawImage(image, 0, 0, size, size);
+    const { data } = context.getImageData(0, 0, size, size);
+    let red = 0;
+    let green = 0;
+    let blue = 0;
+    let totalWeight = 0;
+
+    for (let index = 0; index < data.length; index += 4) {
+        if (data[index + 3] < 128) {
+            continue;
+        }
+
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+
+        // Lewati area yang hampir hitam atau hampir putih (biasanya latar foto).
+        if (max < 24 || min > 242) {
+            continue;
+        }
+
+        // Warna yang lebih pekat diberi bobot lebih besar agar warna benda
+        // lebih dominan daripada latar yang pucat.
+        const weight = 0.25 + (max - min) / 255;
+        red += r * weight;
+        green += g * weight;
+        blue += b * weight;
+        totalWeight += weight;
+    }
+
+    if (totalWeight === 0) {
+        return null;
+    }
+
+    const [hue, saturation, lightness] = rgbToHsl(red / totalWeight, green / totalWeight, blue / totalWeight);
+
+    if (saturation < 0.06) {
+        return null;
+    }
+
+    const shadowSaturation = Math.min(90, Math.max(45, saturation * 100 + 12));
+    const shadowLightness = Math.min(62, Math.max(42, lightness * 100));
+
+    return `hsl(${Math.round(hue)} ${Math.round(shadowSaturation)}% ${Math.round(shadowLightness)}%)`;
+}
+
+function applyPhotoShadow(image) {
+    const row = image.closest('tr');
+
+    if (!row) {
+        return;
+    }
+
+    try {
+        const color = photoShadowColor(image);
+
+        if (color) {
+            row.style.setProperty('--row-color', color);
+        }
+    } catch (error) {
+        // Gambar dari domain lain tanpa izin CORS tidak bisa dibaca canvas.
+        // Baris tetap memakai warna bayangan default.
+    }
+}
+
+document.querySelectorAll('img.item-thumbnail').forEach((image) => {
+    if (!(image instanceof HTMLImageElement)) {
+        return;
+    }
+
+    if (image.complete && image.naturalWidth > 0) {
+        applyPhotoShadow(image);
+        return;
+    }
+
+    image.addEventListener('load', () => applyPhotoShadow(image), { once: true });
+});
