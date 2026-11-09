@@ -6,21 +6,13 @@ const sidebarBackdrop = document.querySelector('.sidebar-backdrop');
 const sidebarLinks = document.querySelectorAll('.main-nav a');
 const mobileViewport = window.matchMedia('(max-width: 800px)');
 
-if (window.localStorage.getItem('arsip-sehat-theme') === 'dark') {
-    document.body.classList.add('dark-theme');
-}
-
-if (window.localStorage.getItem('arsip-sehat-sidebar') === 'collapsed' && !mobileViewport.matches) {
-    document.body.classList.add('sidebar-collapsed');
-}
-
 function setMobileNavigation(isOpen) {
     document.body.classList.toggle('mobile-nav-open', isOpen);
     sidebarToggle?.setAttribute('aria-expanded', String(isOpen || !mobileViewport.matches));
 }
 
 themeToggle?.addEventListener('click', () => {
-    const isDark = document.body.classList.toggle('dark-theme');
+    const isDark = document.documentElement.classList.toggle('dark-theme');
     window.localStorage.setItem('arsip-sehat-theme', isDark ? 'dark' : 'light');
 });
 

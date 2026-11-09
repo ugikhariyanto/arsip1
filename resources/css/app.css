@@ -21,7 +21,7 @@
     background: var(--background);
 }
 
-body.dark-theme {
+:root.dark-theme {
     color-scheme: dark;
     --background: #09090b;
     --foreground: #fafafa;

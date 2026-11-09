@@ -5,9 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Arsip Puskesmas') · Arsip Sehat</title>
+    <script>
+        (function () {
+            try {
+                if (window.localStorage.getItem('arsip-sehat-theme') === 'dark') {
+                    document.documentElement.classList.add('dark-theme');
+                }
+            } catch (error) {}
+        })();
+    </script>
+    <style>
+        :root.dark-theme { background: #09090b; color-scheme: dark; }
+    </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
+    <script>
+        (function () {
+            try {
+                if (window.localStorage.getItem('arsip-sehat-sidebar') === 'collapsed' && !window.matchMedia('(max-width: 800px)').matches) {
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            } catch (error) {}
+        })();
+    </script>
     <div class="app-shell">
         <aside class="sidebar">
             <a class="brand" href="{{ route('dashboard') }}">
