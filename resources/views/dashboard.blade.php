@@ -13,7 +13,7 @@
     </section>
 
     <section class="stat-grid" aria-label="Ringkasan data">
-        <article class="stat-card stat-green">
+        <a class="stat-card stat-green" href="{{ route('inventory.index') }}" aria-label="Lihat semua data barang">
             <div class="stat-top">
                 <span class="stat-icon icon-green" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -35,8 +35,8 @@
             </div>
             <div class="stat-value">{{ number_format($totalItems, 0, ',', '.') }}</div>
             <div class="stat-label">Data barang</div>
-        </article>
-        <article class="stat-card stat-blue">
+        </a>
+        <a class="stat-card stat-blue" href="{{ route('inventory.index', ['type' => 'consumable']) }}" aria-label="Lihat barang habis pakai">
             <div class="stat-top">
                 <span class="stat-icon icon-blue" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -50,8 +50,8 @@
             </div>
             <div class="stat-value">{{ number_format($consumableCount, 0, ',', '.') }}</div>
             <div class="stat-label">Jenis barang terdaftar</div>
-        </article>
-        <article class="stat-card stat-orange">
+        </a>
+        <a class="stat-card stat-orange" href="{{ route('inventory.index', ['type' => 'asset']) }}" aria-label="Lihat barang aset">
             <div class="stat-top">
                 <span class="stat-icon icon-orange" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -64,8 +64,8 @@
             </div>
             <div class="stat-value">{{ number_format($assetCount, 0, ',', '.') }}</div>
             <div class="stat-label">Jenis aset terdaftar</div>
-        </article>
-        <article class="stat-card stat-purple">
+        </a>
+        <a class="stat-card stat-purple" href="{{ route('inventory.index', ['type' => 'consumable']) }}" aria-label="Lihat total stok barang habis pakai">
             <div class="stat-top">
                 <span class="stat-icon icon-purple" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -78,7 +78,7 @@
             </div>
             <div class="stat-value">{{ number_format($totalConsumables, 0, ',', '.') }}</div>
             <div class="stat-label">Unit barang habis pakai</div>
-        </article>
+        </a>
     </section>
 
     <section class="content-card">
