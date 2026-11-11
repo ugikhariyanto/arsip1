@@ -1,0 +1,14 @@
+selain barang habis pakai(BHP) dan barang aset, tambah sarana dan prasarana.
+
+setiap Barang habis pakai, barang aset dan saraana prasarana ada kategori keadaan "Baik, Rusak sedang, Rusak berat, Hilang, tidak ditemukan", tambahkan juga di barang aset keterangan kalibrasi, dengan pilihan sudah atau belum dan jg tanggal kalibrasi. lalu jika barang di update keadaannya jadi rusak/hilang munculkan tanggal rusak/hilang dan keterangan tindak lanjut
+
+ada letak/lokasi dari setiap barang Aset, sarana dan prasarana, BHP tidak usah. lokasi/ruangan bisa ditambah, seperti tambah kategori, jadi nanti bentuknya dropdown
+
+tambah menu laporan yang bisa  digunakan untuk mengekspor ke excel/ke pdf, buat sub menu Laporan ASET/ sarana dan pra sarana. sebelum ekspor bisa filter dari jenis barang ASET, BHP, Sarana dan prasarana laporan terekspor bisa dalam bentuk excel word atau pdf dan setiap ekspor sertakan tanggal saat ekspor laporan tersebut dan jg semua informasi dr barang yang di cari/ filter,
+
+ lalu buat sub menu di laporan bernama "KIR/Kartu Inventaris Ruangan" jadi laporannya didownload berdasarkan filter per ruangan berbentuk tabel dengan judul "KARTU INVENTARIS RUANGAN" lalu dibawah judul itu ada keterangan CONTOH: "RUANGAN MANAJEMEN" jangan llupa sertakan tanggal ekspornya
+
+buat sub menu lagi dilaporan untuk mengekspor laaporan keadaan barang "baik, rusak sedang, rusak berat, hilang, aatau tidak ditemukaan. jgn lupa tgl dan semua keterangan/infonya di masukkan
+
+jadi semua sub menu di laporan ada 3.
+

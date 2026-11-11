@@ -42,22 +42,91 @@ const photoPlaceholder = document.querySelector('[data-photo-placeholder]');
 const removePhotoCheckbox = document.querySelector('input[name="remove_photo"]');
 const currencyInput = document.querySelector('[data-currency-input]');
 const assetFields = document.querySelector('[data-asset-fields]');
+const assetSectionTitle = document.querySelector('[data-asset-section-title]');
+const locationField = document.querySelector('[data-location-field]');
+const locationSelect = document.querySelector('select[name="location_id"]');
+const calibrationFields = document.querySelectorAll('[data-calibration-field]');
+const calibrationSelect = document.querySelector('#item-calibration-status');
+const calibrationDateInput = document.querySelector('input[name="calibration_date"]');
 const quantityInput = document.querySelector('input[name="quantity"]');
 const quantityLabel = document.querySelector('#quantity-label');
+const conditionSelect = document.querySelector('#item-condition');
+const conditionDetailFields = document.querySelectorAll('[data-condition-detail]');
+const conditionDateLabel = document.querySelector('[data-condition-date-label]');
+const conditionDateHint = document.querySelector('[data-condition-date-hint]');
+
+const damagedConditions = ['Rusak sedang', 'Rusak berat'];
+const lostConditions = ['Hilang', 'Tidak ditemukan'];
 
 function updateTypeFields() {
     if (!typeSelect || !assetFields || !quantityInput || !quantityLabel) {
         return;
     }
 
+    const isConsumable = typeSelect.value === 'consumable';
     const isAsset = typeSelect.value === 'asset';
-    assetFields.hidden = !isAsset;
-    quantityInput.min = isAsset ? '1' : '0';
-    quantityLabel.innerHTML = isAsset ? 'Jumlah aset <b>*</b>' : 'Jumlah stok <b>*</b>';
+    const isFacility = typeSelect.value === 'facility';
+    const hasLocation = isAsset || isFacility;
+
+    assetFields.hidden = isConsumable;
+    quantityInput.min = isConsumable ? '0' : '1';
+    quantityLabel.innerHTML = isConsumable
+        ? 'Jumlah stok <b>*</b>'
+        : (isAsset ? 'Jumlah aset <b>*</b>' : 'Jumlah sarana <b>*</b>');
+
+    if (assetSectionTitle) {
+        assetSectionTitle.textContent = isFacility ? 'Informasi sarana dan prasarana' : 'Informasi aset';
+    }
+
+    if (locationField) {
+        locationField.hidden = !hasLocation;
+    }
+
+    if (locationSelect) {
+        locationSelect.disabled = !hasLocation;
+    }
+
+    calibrationFields.forEach((field) => {
+        field.hidden = !isAsset;
+    });
+
+    if (calibrationSelect) {
+        calibrationSelect.disabled = !isAsset;
+    }
+
+    if (calibrationDateInput) {
+        calibrationDateInput.disabled = !isAsset;
+    }
+}
+
+function updateConditionFields() {
+    if (!conditionSelect) {
+        return;
+    }
+
+    const condition = conditionSelect.value;
+    const needsDetail = damagedConditions.includes(condition) || lostConditions.includes(condition);
+    const isLost = lostConditions.includes(condition);
+
+    conditionDetailFields.forEach((field) => {
+        field.hidden = !needsDetail;
+    });
+
+    if (conditionDateLabel) {
+        conditionDateLabel.innerHTML = `${isLost ? 'Tanggal hilang' : 'Tanggal rusak'} <b>*</b>`;
+    }
+
+    if (conditionDateHint) {
+        conditionDateHint.textContent = isLost
+            ? 'Isi tanggal barang dinyatakan hilang atau tidak ditemukan.'
+            : 'Isi tanggal barang mulai rusak.';
+    }
 }
 
 typeSelect?.addEventListener('change', updateTypeFields);
+conditionSelect?.addEventListener('change', updateConditionFields);
 updateTypeFields();
+updateConditionFields();
 
 function updateItemCodePreview() {
     if (!categorySelect || !itemNumberDisplay || !itemCodePrefix || !itemCodePreview) {

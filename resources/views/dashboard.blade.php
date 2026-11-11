@@ -7,7 +7,7 @@
         <div>
             <p class="eyebrow">DASHBOARD</p>
             <h1>Ringkasan inventaris</h1>
-            <p class="heading-copy">Pantau barang habis pakai dan aset puskesmas dalam satu tempat.</p>
+            <p class="heading-copy">Pantau barang habis pakai, aset, serta sarana dan prasarana puskesmas dalam satu tempat.</p>
         </div>
         <a class="button button-primary" href="{{ route('inventory.create') }}"><span>＋</span> Tambah barang</a>
     </section>
@@ -65,6 +65,21 @@
             <div class="stat-value">{{ number_format($assetCount, 0, ',', '.') }}</div>
             <div class="stat-label">Jenis aset terdaftar</div>
         </a>
+        <a class="stat-card stat-teal" href="{{ route('inventory.index', ['type' => 'facility']) }}" aria-label="Lihat sarana dan prasarana">
+            <div class="stat-top">
+                <span class="stat-icon icon-teal" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 21h18"/>
+                        <path d="M5 21V7l7-4 7 4v14"/>
+                        <path d="M9 21v-5h6v5"/>
+                        <path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/>
+                    </svg>
+                </span>
+                <span class="stat-caption">SARANA &amp; PRASARANA</span>
+            </div>
+            <div class="stat-value">{{ number_format($facilityCount, 0, ',', '.') }}</div>
+            <div class="stat-label">Jenis sarana terdaftar</div>
+        </a>
         <a class="stat-card stat-purple" href="{{ route('inventory.index', ['type' => 'consumable']) }}" aria-label="Lihat total stok barang habis pakai">
             <div class="stat-top">
                 <span class="stat-icon icon-purple" aria-hidden="true">
@@ -96,7 +111,7 @@
         @else
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Foto</th><th>Nama barang</th><th>Kode</th><th>Jenis</th><th>Jumlah</th><th>Lokasi</th><th>Aksi</th></tr></thead>
+                    <thead><tr><th>Foto</th><th>Nama barang</th><th>Kode</th><th>Jenis</th><th>Keadaan</th><th>Jumlah</th><th>Lokasi</th><th>Aksi</th></tr></thead>
                     <tbody>
                     @foreach ($recentItems as $item)
                         <tr>
@@ -109,9 +124,10 @@
                             </td>
                             <td><a class="item-name-link" href="{{ route('inventory.show', $item) }}"><strong>{{ $item->name }}</strong></a><small class="cell-subtitle">{{ $item->category }}</small></td>
                             <td class="code-cell">{{ $item->code }}</td>
-                            <td><span class="badge {{ $item->type === 'asset' ? 'badge-orange' : 'badge-blue' }}">{{ $item->type_label }}</span></td>
+                            <td><span class="badge {{ $item->type === 'asset' ? 'badge-orange' : ($item->type === 'facility' ? 'badge-green' : 'badge-blue') }}">{{ $item->type_label }}</span></td>
+                            <td><span class="condition-pill {{ $item->condition === 'Baik' ? 'condition-good' : ($item->isLost() ? 'condition-lost' : 'condition-damaged') }}">{{ $item->condition ?: '—' }}</span></td>
                             <td>{{ number_format($item->quantity, 0, ',', '.') }} {{ $item->unit }}</td>
-                            <td>{{ $item->location ?: '—' }}</td>
+                            <td>{{ $item->hasLocation() ? ($item->location_name ?: '—') : '—' }}</td>
                             <td><a class="action-button action-view" href="{{ route('inventory.show', $item) }}">Lihat barang</a></td>
                         </tr>
                     @endforeach

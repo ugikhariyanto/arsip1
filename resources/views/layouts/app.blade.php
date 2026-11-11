@@ -53,8 +53,24 @@
                 <a class="{{ request()->routeIs('inventory.*') && $activeInventoryType === 'asset' ? 'active' : '' }}" href="{{ route('inventory.index', ['type' => 'asset']) }}">
                     <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 21h8m-4-4v4m-5-9 3-3 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nav-copy">Barang aset</span>
                 </a>
+                <a class="{{ request()->routeIs('inventory.*') && $activeInventoryType === 'facility' ? 'active' : '' }}" href="{{ route('inventory.index', ['type' => 'facility']) }}">
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 9h.01M15 9h.01M9 13h.01M15 13h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nav-copy">Sarana dan prasarana</span>
+                </a>
                 <a class="{{ request()->routeIs('categories.*') ? 'active' : '' }}" href="{{ route('categories.index') }}">
-                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3H5a2 2 0 0 0-2 2v7l9 9 9-9-9-9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1" fill="currentColor"/></svg></span><span class="nav-copy">Tambah kategori</span>
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3H5a2 2 0 0 0-2 2v7l9 9 9-9-9-9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1" fill="currentColor"/></svg></span><span class="nav-copy">Kategori barang</span>
+                </a>
+                <a class="{{ request()->routeIs('locations.*') ? 'active' : '' }}" href="{{ route('locations.index') }}">
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V7l7-4 7 4v14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.7"/></svg></span><span class="nav-copy">Lokasi / ruangan</span>
+                </a>
+                <div class="nav-label nav-label-spaced">LAPORAN</div>
+                <a class="{{ request()->routeIs('reports.items*') ? 'active' : '' }}" href="{{ route('reports.items') }}">
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="nav-copy">Laporan aset / sarana</span>
+                </a>
+                <a class="{{ request()->routeIs('reports.kir*') ? 'active' : '' }}" href="{{ route('reports.kir') }}">
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 9h18M9 9v11M3 14h18" stroke="currentColor" stroke-width="1.7"/></svg></span><span class="nav-copy">KIR / Inventaris ruangan</span>
+                </a>
+                <a class="{{ request()->routeIs('reports.conditions*') ? 'active' : '' }}" href="{{ route('reports.conditions') }}">
+                    <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 2.5 20h19L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9v5m0 3h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="nav-copy">Laporan keadaan barang</span>
                 </a>
             </nav>
             <div class="sidebar-note">
@@ -86,6 +102,9 @@
             <main class="main-content">
                 @if (session('success'))
                     <div class="alert alert-success" role="status">{{ session('success') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-error" role="alert">{{ session('error') }}</div>
                 @endif
                 @yield('content')
             </main>

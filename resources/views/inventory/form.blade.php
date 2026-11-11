@@ -12,6 +12,14 @@
         $initialItemNumber = $originalCategoryId !== null && $selectedCategoryId === $originalCategoryId
             ? $originalItemNumber
             : ($nextNumbers[$selectedCategoryId] ?? '');
+
+        $selectedType = old('type', $item->type);
+        $hasLocation = in_array($selectedType, ['asset', 'facility'], true);
+        $selectedLocationId = (int) old('location_id', $item->location_id);
+        $selectedCondition = old('condition', $item->condition ?: 'Baik');
+        $needsConditionDetail = in_array($selectedCondition, \App\Models\InventoryItem::CONDITION_DETAIL_REQUIRED, true);
+        $isLostCondition = in_array($selectedCondition, [\App\Models\InventoryItem::CONDITION_LOST, \App\Models\InventoryItem::CONDITION_NOT_FOUND], true);
+        $calibrationStatus = old('calibration_status', $item->calibration_status);
     @endphp
     <section class="page-heading">
         <div>
@@ -46,8 +54,9 @@
                     <label class="field">
                         <span>Jenis barang <b>*</b></span>
                         <select name="type" id="item-type" required>
-                            <option value="consumable" @selected(old('type', $item->type) === 'consumable')>Barang habis pakai</option>
-                            <option value="asset" @selected(old('type', $item->type) === 'asset')>Barang aset</option>
+                            <option value="consumable" @selected($selectedType === 'consumable')>Barang habis pakai</option>
+                            <option value="asset" @selected($selectedType === 'asset')>Barang aset</option>
+                            <option value="facility" @selected($selectedType === 'facility')>Sarana dan prasarana</option>
                         </select>
                         @error('type')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
@@ -88,11 +97,11 @@
             </div>
 
             <div class="form-section">
-                <div class="form-section-heading"><span class="step-number">2</span><div><h2>Stok dan lokasi</h2><p>Masukkan jumlah saat ini dan tempat penyimpanan.</p></div></div>
+                <div class="form-section-heading"><span class="step-number">2</span><div><h2>Stok dan lokasi</h2><p>Masukkan jumlah saat ini dan tempat penyimpanan barang.</p></div></div>
                 <div class="form-grid">
                     <label class="field">
-                        <span id="quantity-label">{{ $item->type === 'asset' ? 'Jumlah aset' : 'Jumlah stok' }} <b>*</b></span>
-                        <input type="number" name="quantity" min="{{ $item->type === 'asset' ? 1 : 0 }}" step="1" value="{{ old('quantity', $item->quantity) }}" required data-numeric-keypad>
+                        <span id="quantity-label">{{ $selectedType === 'consumable' ? 'Jumlah stok' : 'Jumlah' }} <b>*</b></span>
+                        <input type="number" name="quantity" min="{{ $selectedType === 'consumable' ? 0 : 1 }}" step="1" value="{{ old('quantity', $item->quantity) }}" required data-numeric-keypad>
                         @error('quantity')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
                     <label class="field">
@@ -100,10 +109,17 @@
                         <input name="unit" value="{{ old('unit', $item->unit) }}" maxlength="30" placeholder="Contoh: pcs, rim, botol, unit" required>
                         @error('unit')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
-                    <label class="field">
-                        <span>Lokasi penyimpanan</span>
-                        <input name="location" value="{{ old('location', $item->location) }}" maxlength="150" placeholder="Contoh: Gudang umum, Ruang pemeriksaan">
-                        @error('location')<small class="field-error">{{ $message }}</small>@enderror
+                    <label class="field" data-location-field @if (! $hasLocation) hidden @endif>
+                        <span>Lokasi / ruangan</span>
+                        <select name="location_id" @disabled(! $hasLocation)>
+                            <option value="">Pilih lokasi / ruangan</option>
+                            @foreach ($locations as $location)
+                                <option value="{{ $location->id }}" @selected($selectedLocationId === $location->id)>{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                        <small class="field-hint">Lokasi hanya digunakan untuk barang aset serta sarana dan prasarana.</small>
+                        <a class="field-hint field-link" href="{{ route('locations.create') }}">+ Tambah lokasi / ruangan baru</a>
+                        @error('location_id')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
                 </div>
             </div>
@@ -143,19 +159,37 @@
                 </div>
             </div>
 
-            <div class="form-section asset-fields" data-asset-fields>
-                <div class="form-section-heading"><span class="step-number">4</span><div><h2>Informasi aset</h2><p>Detail tambahan untuk barang yang masa pakainya lama.</p></div></div>
+            <div class="form-section">
+                <div class="form-section-heading"><span class="step-number">4</span><div><h2>Keadaan barang</h2><p>Pilih keadaan terkini untuk semua jenis barang.</p></div></div>
                 <div class="form-grid">
                     <label class="field">
-                        <span>Kondisi</span>
-                        <select name="condition">
-                            <option value="">Pilih kondisi</option>
-                            @foreach (['Baik', 'Perlu perbaikan', 'Rusak'] as $condition)
-                                <option value="{{ $condition }}" @selected(old('condition', $item->condition) === $condition)>{{ $condition }}</option>
+                        <span>Keadaan <b>*</b></span>
+                        <select name="condition" id="item-condition" required>
+                            @foreach (\App\Models\InventoryItem::CONDITIONS as $condition)
+                                <option value="{{ $condition }}" @selected($selectedCondition === $condition)>{{ $condition }}</option>
                             @endforeach
                         </select>
                         @error('condition')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
+                    <div class="field" data-condition-detail @if (! $needsConditionDetail) hidden @endif>
+                        <span data-condition-date-label>{{ $isLostCondition ? 'Tanggal hilang' : 'Tanggal rusak' }} <b>*</b></span>
+                        <input type="date" name="condition_date" value="{{ old('condition_date', $item->condition_date?->format('Y-m-d')) }}">
+                        <small class="field-hint" data-condition-date-hint>
+                            {{ $isLostCondition ? 'Isi tanggal barang dinyatakan hilang atau tidak ditemukan.' : 'Isi tanggal barang mulai rusak.' }}
+                        </small>
+                        @error('condition_date')<small class="field-error">{{ $message }}</small>@enderror
+                    </div>
+                    <label class="field" data-condition-detail @if (! $needsConditionDetail) hidden @endif>
+                        <span>Keterangan tindak lanjut</span>
+                        <textarea name="follow_up" rows="3" maxlength="2000" placeholder="Contoh: Sudah diajukan perbaikan, menunggu teknisi, atau dilaporkan ke bagian umum.">{{ old('follow_up', $item->follow_up) }}</textarea>
+                        @error('follow_up')<small class="field-error">{{ $message }}</small>@enderror
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section asset-fields" data-asset-fields @if ($selectedType === 'consumable') hidden @endif>
+                <div class="form-section-heading"><span class="step-number">5</span><div><h2 data-asset-section-title>{{ $selectedType === 'facility' ? 'Informasi sarana dan prasarana' : 'Informasi aset' }}</h2><p>Detail tambahan untuk barang yang masa pakainya lama.</p></div></div>
+                <div class="form-grid">
                     <label class="field">
                         <span>Tanggal perolehan</span>
                         <input type="date" name="acquired_at" value="{{ old('acquired_at', $item->acquired_at?->format('Y-m-d')) }}">
@@ -169,6 +203,22 @@
                         </div>
                         <small class="field-hint">Masukkan harga dalam rupiah. Pemisah ribuan ditambahkan otomatis.</small>
                         @error('price')<small class="field-error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="field" data-calibration-field @if ($selectedType !== 'asset') hidden @endif>
+                        <span>Status kalibrasi</span>
+                        <select name="calibration_status" id="item-calibration-status" @disabled($selectedType !== 'asset')>
+                            <option value="">Pilih status kalibrasi</option>
+                            <option value="belum" @selected($calibrationStatus === 'belum')>Belum</option>
+                            <option value="sudah" @selected($calibrationStatus === 'sudah')>Sudah</option>
+                        </select>
+                        <small class="field-hint">Keterangan kalibrasi hanya tersedia untuk barang aset.</small>
+                        @error('calibration_status')<small class="field-error">{{ $message }}</small>@enderror
+                    </label>
+                    <label class="field" data-calibration-field @if ($selectedType !== 'asset') hidden @endif>
+                        <span>Tanggal kalibrasi</span>
+                        <input type="date" name="calibration_date" value="{{ old('calibration_date', $item->calibration_date?->format('Y-m-d')) }}" @disabled($selectedType !== 'asset')>
+                        <small class="field-hint">Wajib diisi bila status kalibrasi sudah dilakukan.</small>
+                        @error('calibration_date')<small class="field-error">{{ $message }}</small>@enderror
                     </label>
                 </div>
             </div>

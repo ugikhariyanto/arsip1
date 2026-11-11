@@ -36,7 +36,7 @@
         <article class="content-card item-info-card">
             <div class="detail-card-heading">
                 <div><h2>Informasi barang</h2><p>Rincian data inventaris</p></div>
-                <span class="badge {{ $item->type === 'asset' ? 'badge-orange' : 'badge-blue' }}">{{ $item->type_label }}</span>
+                <span class="badge {{ $item->type === 'asset' ? 'badge-orange' : ($item->type === 'facility' ? 'badge-green' : 'badge-blue') }}">{{ $item->type_label }}</span>
             </div>
             <dl class="item-detail-list">
                 <div><dt>Nama barang</dt><dd>{{ $item->name }}</dd></div>
@@ -46,14 +46,27 @@
                 <div><dt>Kode kategori</dt><dd class="code-cell">{{ $item->categoryRecord?->code ?? '—' }}</dd></div>
                 <div><dt>Jumlah</dt><dd>{{ number_format($item->quantity, 0, ',', '.') }}</dd></div>
                 <div><dt>Satuan</dt><dd>{{ $item->unit }}</dd></div>
-                <div><dt>Lokasi penyimpanan</dt><dd>{{ $item->location ?: '—' }}</dd></div>
-                @if ($item->type === 'asset')
-                    <div><dt>Kondisi</dt><dd>{{ $item->condition ?: '—' }}</dd></div>
+                <div>
+                    <dt>Keadaan</dt>
+                    <dd><span class="condition-pill {{ $item->condition === 'Baik' ? 'condition-good' : ($item->isLost() ? 'condition-lost' : 'condition-damaged') }}">{{ $item->condition ?: '—' }}</span></dd>
+                </div>
+                @if ($item->hasLocation())
+                    <div><dt>Lokasi / ruangan</dt><dd>{{ $item->location_name ?: '—' }}</dd></div>
+                @endif
+                @if ($item->needsConditionDetail())
+                    <div><dt>{{ $item->condition_date_label }}</dt><dd>{{ $item->condition_date?->format('d/m/Y') ?? '—' }}</dd></div>
+                    <div class="detail-follow-up"><dt>Keterangan tindak lanjut</dt><dd>{{ $item->follow_up ?: 'Belum ada keterangan tindak lanjut.' }}</dd></div>
+                @endif
+                @if (! $item->isConsumable())
                     <div><dt>Tanggal perolehan</dt><dd>{{ $item->acquired_at?->format('d/m/Y') ?? '—' }}</dd></div>
                     <div class="detail-price" data-price-detail>
                         <dt>Harga barang</dt>
                         <dd>{{ $item->price === null ? 'Belum diisi' : 'Rp '.number_format($item->price, 0, ',', '.') }}</dd>
                     </div>
+                @endif
+                @if ($item->isAsset())
+                    <div><dt>Status kalibrasi</dt><dd>{{ $item->calibration_status_label }}</dd></div>
+                    <div><dt>Tanggal kalibrasi</dt><dd>{{ $item->calibration_date?->format('d/m/Y') ?? '—' }}</dd></div>
                 @endif
                 <div class="detail-notes"><dt>Keterangan</dt><dd>{{ $item->notes ?: 'Tidak ada keterangan.' }}</dd></div>
             </dl>

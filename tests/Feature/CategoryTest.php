@@ -15,7 +15,8 @@ class CategoryTest extends TestCase
     {
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSeeText('Tambah kategori')
+            ->assertSeeText('Kategori barang')
+            ->assertSeeText('Lokasi / ruangan')
             ->assertSee(route('categories.index'), false);
     }
 

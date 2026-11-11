@@ -569,7 +569,7 @@ class InventoryItemTest extends TestCase
             ->assertSeeText('5')
             ->assertSeeText('Satuan')
             ->assertSeeText('rim')
-            ->assertSeeText('Gudang umum')
+            ->assertDontSeeText('Gudang umum')
             ->assertSeeText('Disimpan di rak atas');
     }
 

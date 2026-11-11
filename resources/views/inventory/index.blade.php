@@ -1,13 +1,22 @@
 @extends('layouts.app')
 
-@section('title', $type === 'asset' ? 'Barang aset' : ($type === 'consumable' ? 'Barang habis pakai' : 'Data barang'))
+@php
+    $typeLabel = match ($type) {
+        'asset' => 'Barang aset',
+        'facility' => 'Sarana dan prasarana',
+        'consumable' => 'Barang habis pakai',
+        default => 'Data barang',
+    };
+@endphp
+
+@section('title', $typeLabel)
 
 @section('content')
     <section class="page-heading">
         <div>
             <p class="eyebrow">INVENTARIS</p>
-            <h1>{{ $type === 'asset' ? 'Barang aset' : ($type === 'consumable' ? 'Barang habis pakai' : 'Data barang') }}</h1>
-            <p class="heading-copy">{{ $type === 'asset' ? 'Kelola data aset puskesmas beserta kondisi dan lokasi.' : ($type === 'consumable' ? 'Kelola stok barang habis pakai puskesmas.' : 'Kelola stok barang habis pakai dan pencatatan aset puskesmas.') }}</p>
+            <h1>{{ $typeLabel }}</h1>
+            <p class="heading-copy">{{ $type === 'asset' ? 'Kelola data aset puskesmas beserta keadaan, kalibrasi, dan lokasinya.' : ($type === 'facility' ? 'Kelola sarana dan prasarana puskesmas beserta keadaan dan lokasinya.' : ($type === 'consumable' ? 'Kelola stok barang habis pakai puskesmas.' : 'Kelola stok barang habis pakai, aset, serta sarana dan prasarana puskesmas.')) }}</p>
         </div>
         <a class="button button-primary" href="{{ route('inventory.create', $type ? ['type' => $type] : []) }}"><span>＋</span> Tambah barang</a>
     </section>
@@ -17,7 +26,7 @@
             <label class="search-field">
                 <span class="sr-only">Cari barang</span>
                 <span class="search-icon">⌕</span>
-                <input type="search" name="search" value="{{ $search }}" placeholder="Cari nama, kode, kategori, atau lokasi...">
+                <input type="search" name="search" value="{{ $search }}" placeholder="Cari nama, kode, kategori, lokasi, atau keterangan...">
             </label>
             <label class="filter-select">
                 <span class="sr-only">Filter jenis barang</span>
@@ -25,17 +34,36 @@
                     <option value="">Semua jenis</option>
                     <option value="consumable" @selected($type === 'consumable')>Barang habis pakai</option>
                     <option value="asset" @selected($type === 'asset')>Barang aset</option>
+                    <option value="facility" @selected($type === 'facility')>Sarana dan prasarana</option>
+                </select>
+            </label>
+            <label class="filter-select">
+                <span class="sr-only">Filter keadaan barang</span>
+                <select name="condition">
+                    <option value="">Semua keadaan</option>
+                    @foreach (\App\Models\InventoryItem::CONDITIONS as $conditionOption)
+                        <option value="{{ $conditionOption }}" @selected($condition === $conditionOption)>{{ $conditionOption }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="filter-select filter-select-wide">
+                <span class="sr-only">Filter lokasi</span>
+                <select name="location_id">
+                    <option value="">Semua lokasi</option>
+                    @foreach ($locations as $location)
+                        <option value="{{ $location->id }}" @selected((int) $locationId === $location->id)>{{ $location->name }}</option>
+                    @endforeach
                 </select>
             </label>
             <button class="button button-secondary" type="submit">Terapkan</button>
-            @if ($search !== '' || in_array($type, ['consumable', 'asset'], true))
+            @if ($search !== '' || $type || $condition || $locationId)
                 <a class="clear-link" href="{{ route('inventory.index') }}">Reset</a>
             @endif
         </form>
 
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Foto</th><th>Nama barang</th><th>Kode</th><th>Jenis</th><th>Jumlah</th><th>Lokasi</th><th class="actions-heading">Aksi</th></tr></thead>
+                <thead><tr><th>Foto</th><th>Nama barang</th><th>Kode</th><th>Jenis</th><th>Keadaan</th><th>Jumlah</th><th>Lokasi</th><th class="actions-heading">Aksi</th></tr></thead>
                 <tbody>
                 @forelse ($items as $item)
                     <tr>
@@ -48,9 +76,10 @@
                         </td>
                         <td><strong>{{ $item->name }}</strong><small class="cell-subtitle">{{ $item->category }}</small></td>
                         <td class="code-cell">{{ $item->code }}</td>
-                        <td><span class="badge {{ $item->type === 'asset' ? 'badge-orange' : 'badge-blue' }}">{{ $item->type_label }}</span></td>
+                        <td><span class="badge {{ $item->type === 'asset' ? 'badge-orange' : ($item->type === 'facility' ? 'badge-green' : 'badge-blue') }}">{{ $item->type_label }}</span></td>
+                        <td><span class="condition-pill {{ $item->condition === 'Baik' ? 'condition-good' : ($item->isLost() ? 'condition-lost' : 'condition-damaged') }}">{{ $item->condition ?: '—' }}</span></td>
                         <td><strong>{{ number_format($item->quantity, 0, ',', '.') }}</strong> {{ $item->unit }}</td>
-                        <td>{{ $item->location ?: '—' }}</td>
+                        <td>{{ $item->hasLocation() ? ($item->location_name ?: '—') : '—' }}</td>
                         <td class="row-actions">
                             <a class="action-button action-view" href="{{ route('inventory.show', $item) }}">Lihat</a>
                             <a class="action-button action-edit" href="{{ route('inventory.edit', $item) }}">Ubah</a>
@@ -62,12 +91,12 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7">
+                    <tr><td colspan="8">
                         <div class="empty-state compact">
                             <div class="empty-icon">⌕</div>
-                            <h3>{{ $search !== '' || $type ? 'Barang tidak ditemukan' : 'Belum ada data barang' }}</h3>
-                            <p>{{ $search !== '' || $type ? 'Coba ubah kata pencarian atau filter.' : 'Tambahkan barang pertama untuk mulai mengelola inventaris.' }}</p>
-                            @if ($search === '' && ! $type)
+                            <h3>{{ $search !== '' || $type || $condition || $locationId ? 'Barang tidak ditemukan' : 'Belum ada data barang' }}</h3>
+                            <p>{{ $search !== '' || $type || $condition || $locationId ? 'Coba ubah kata pencarian atau filter.' : 'Tambahkan barang pertama untuk mulai mengelola inventaris.' }}</p>
+                            @if ($search === '' && ! $type && ! $condition && ! $locationId)
                                 <a class="button button-primary" href="{{ route('inventory.create', $type ? ['type' => $type] : []) }}">Tambah barang</a>
                             @endif
                         </div>
