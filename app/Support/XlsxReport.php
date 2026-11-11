@@ -110,17 +110,24 @@ class XlsxReport
 
         $freezeRow = $headerRowNumber + 1;
         $autoFilter = 'A'.$headerRowNumber.':'.$lastColumn.$lastRowNumber;
+        $dimension = 'A1:'.$lastColumn.$lastRowNumber;
 
+        // Urutan elemen worksheet harus mengikuti skema OOXML. Excel menolak
+        // berkas bila mergeCells ditulis sebelum autoFilter, meskipun pembaca
+        // lain seperti openpyxl masih memaafkannya.
         $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
+            .'<dimension ref="'.$dimension.'"/>'
             .'<sheetViews><sheetView tabSelected="1" workbookViewId="0">'
             .'<pane ySplit="'.$headerRowNumber.'" topLeftCell="A'.$freezeRow.'" activePane="bottomLeft" state="frozen"/>'
+            .'<selection pane="bottomLeft" activeCell="A'.$freezeRow.'" sqref="A'.$freezeRow.'"/>'
             .'</sheetView></sheetViews>'
             .'<sheetFormatPr defaultRowHeight="15"/>'
             .'<cols>'.$columnXml.'</cols>'
             .'<sheetData>'.implode('', $sheetRows).'</sheetData>'
-            .($merges !== [] ? '<mergeCells count="'.count($merges).'">'.implode('', array_map(fn ($range) => '<mergeCell ref="'.$range.'"/>', $merges)).'</mergeCells>' : '')
             .'<autoFilter ref="'.$autoFilter.'"/>'
+            .($merges !== [] ? '<mergeCells count="'.count($merges).'">'.implode('', array_map(fn ($range) => '<mergeCell ref="'.$range.'"/>', $merges)).'</mergeCells>' : '')
             .'<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>'
             .'<pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>'
             .'</worksheet>';

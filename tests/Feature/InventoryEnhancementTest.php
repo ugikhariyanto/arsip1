@@ -176,6 +176,38 @@ class InventoryEnhancementTest extends TestCase
         }
     }
 
+    public function test_excel_export_keeps_worksheet_elements_in_schema_order(): void
+    {
+        $category = Category::create(['name' => 'Elektronik', 'code' => 'ELK']);
+        InventoryItem::create([
+            'type' => InventoryItem::TYPE_ASSET,
+            'code' => 'ELK-0001',
+            'item_number' => '0001',
+            'name' => 'Komputer',
+            'category' => $category->name,
+            'category_id' => $category->id,
+            'quantity' => 1,
+            'unit' => 'unit',
+            'condition' => InventoryItem::CONDITION_GOOD,
+        ]);
+
+        $content = $this->get(route('reports.items.export', ['format' => 'xlsx']))
+            ->assertOk()
+            ->getContent();
+
+        // Entri ZIP laporan disimpan tanpa kompresi, jadi XML worksheet dapat
+        // diperiksa langsung. Excel menolak berkas bila mergeCells mendahului
+        // autoFilter, dan hanya menampilkan lembar kosong.
+        $this->assertStringContainsString('<dimension ref="A1:', $content);
+        $this->assertStringContainsString('<autoFilter ', $content);
+        $this->assertStringContainsString('<mergeCells ', $content);
+        $this->assertLessThan(
+            strpos($content, '<mergeCells '),
+            strpos($content, '<autoFilter '),
+            'Elemen autoFilter harus muncul sebelum mergeCells pada worksheet.'
+        );
+    }
+
     public function test_kir_export_requires_a_room(): void
     {
         $this->get(route('reports.kir.export', ['format' => 'xlsx']))
